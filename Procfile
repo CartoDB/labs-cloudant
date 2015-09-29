@@ -1,1 +1,1 @@
-web: gunicorn url_proxy:app
+web: gunicorn -b $IP:$PORT url_proxy:app
