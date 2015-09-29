@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import requests
+from urlparse import urlparse, parse_qs
 from flask import Flask, request, Response, jsonify
 
 app = Flask(__name__)
@@ -11,39 +12,63 @@ def index():
     geojson = {"type": 'FeatureCollection', "features": []}
 
     url = request.args.get("url")
-
     if url is None:
         return Response(status=400)
 
-    first = requests.get(url)
+    params = parse_qs(urlparse(url).query)
 
-    if first.status_code != 200:
-        return Response(status=400)
+    if "skip" not in params:
+        params["skip"] = 0
 
-    tmp_geojson = first.json()
+    need_more = True
 
-    bookmark = None
-    while tmp_geojson:
-        print tmp_geojson
+    while need_more is True:
+        r = requests.get(url, params)
+
+        if r.status_code != 200:
+            return Response(status=400)
+
         try:
-            bookmark = bookmark or tmp_geojson["bookmark"]
-        except KeyError:
-            bookmark = None
-        else:
-            del tmp_geojson["bookmark"]
+            r = r.json()
+        except AttributeError:
+            return Response(status=400)
 
-        if len(tmp_geojson["features"]) > 0:
-            geojson["features"] += tmp_geojson["features"]
+        try:
+            rows = r["rows"]
+            total_rows = r["total_rows"]
+            offset = r["offset"]
+        except AttributeError:
+            return Response(status=400)
 
-            if bookmark:
-                next = requests.get("%s&bookmark=%s" % (url, bookmark))
-                if next.status_code != 200:
-                    return Response(status=400)
-                tmp_geojson = next.json()
+        for row in rows:
+            try:
+                feature = row["doc"]
+            except AttributeError:
+                continue
             else:
-                tmp_geojson = None
+                if "type" not in feature or feature["type"].lower() != "feature":
+                    continue
+
+            geojson_entry = {"type": "Feature"}
+
+            try:
+                geojson_entry["geometry"] = feature["geometry"]
+            except AttributeError:
+                continue
+
+            try:
+                geojson_entry["properties"] = feature["properties"]
+            except AttributeError:
+                pass
+
+            geojson["features"].append(geojson_entry)
+
+        params = parse_qs(urlparse(url).query)
+        skip = offset + len(rows)
+        if skip < total_rows:
+            params["skip"] = offset + len(rows)
         else:
-            tmp_geojson = None
+            need_more = False
 
     return jsonify(geojson)
 
