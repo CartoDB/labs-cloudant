@@ -72,6 +72,3 @@ def index():
             need_more = False
 
     return jsonify(geojson)
-
-
-app.run()
