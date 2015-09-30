@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-import os
 import requests
+from flask.json import dumps
 from urlparse import urlparse, parse_qs
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, make_response
 
 app = Flask(__name__)
 app.debug = False
@@ -71,4 +71,6 @@ def index():
         else:
             need_more = False
 
-    return jsonify(geojson)
+    response = make_response(dumps(geojson))
+    response.headers["Content-Type"] = "text/plain; charset=utf-8"
+    return response
