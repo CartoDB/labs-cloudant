@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+import os
 import requests
 from urlparse import urlparse, parse_qs
 from flask import Flask, request, Response, jsonify
 
 app = Flask(__name__)
-app.debug = True
+app.debug = False
 
 
 @app.route('/url-proxy/')
